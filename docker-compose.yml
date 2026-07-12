@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # ─── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
@@ -55,11 +53,26 @@ services:
       STORAGE_PROVIDER: s3
       THROTTLE_TTL: 60
       THROTTLE_LIMIT: 100
+      # Prisma v7 — tell the CLI not to download Rust engine binaries (uses WASM)
+      PRISMA_CLI_QUERY_ENGINE_TYPE: none
     ports:
       - '3000:3000'
     volumes:
+      # Bind-mount the source code for hot-reload
       - .:/app
-      - /app/node_modules
+      # Named volume protects node_modules (including the pnpm virtual store and
+      # the generated .prisma/client/) from being overwritten by the bind-mount above.
+      # Docker applies volumes BEFORE bind-mounts, so this takes precedence.
+      - api_node_modules:/app/node_modules
+      # Named volume protects the Nx cache from the host bind-mount.
+      # The host's .nx/ may contain stale Windows-path cache entries that
+      # cause "Could not find dist/apps/api/main.js" on first boot.
+      - api_nx_cache:/app/.nx
+      # Named volume protects the build output from the host bind-mount.
+      # The host's dist/ contains Windows-path Nx cache entries; protecting
+      # it ensures webpack always writes to a clean Linux-path dist/ inside
+      # the container and the serve executor can find main.js.
+      - api_dist:/app/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,4 +83,16 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  # Named volume for the API's node_modules — preserves the pnpm virtual store
+  # and generated Prisma client across container restarts and source bind-mounts.
+  api_node_modules:
+    driver: local
+  # Named volume for the Nx build cache — prevents the host's stale Windows-path
+  # cache from being mounted into the Linux container and causing build failures.
+  api_nx_cache:
+    driver: local
+  # Named volume for the webpack build output — prevents the host's Windows-built
+  # dist/ (with backslash paths in Nx cache) from shadowing the container's output.
+  api_dist:
     driver: local

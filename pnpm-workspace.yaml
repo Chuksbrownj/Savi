@@ -1,3 +1,6 @@
+packages:
+  - 'apps/*'
+
 autoInstallPeers: true
 allowBuilds:
   '@parcel/watcher': true

@@ -1,9 +1,36 @@
 FROM node:24-alpine AS dev
+
 WORKDIR /app
-RUN npm install -g pnpm
+
+# ── Install pnpm ──────────────────────────────────────────────────────────────
+RUN npm install -g pnpm@11.12.0
+
+# ── Install dependencies ──────────────────────────────────────────────────────
+# Copy manifests first for layer caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --no-frozen-lockfile
+
+RUN pnpm config set fetch-timeout 600000 \
+ && pnpm config set fetch-retries 10 \
+ && pnpm config set network-concurrency 8 \
+ && pnpm install --no-frozen-lockfile
+
+# ── Copy source ───────────────────────────────────────────────────────────────
+# prisma generate must run AFTER the schema is present
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+
+# ── Generate Prisma Client ────────────────────────────────────────────────────
+# Generates into the pnpm virtual store (.pnpm/.../@prisma+client.../node_modules/.prisma/client)
+# The anonymous volume in docker-compose keeps this across bind-mounts.
+RUN ./node_modules/.bin/prisma generate
+
+# ── Copy remaining source ─────────────────────────────────────────────────────
 COPY . .
-RUN pnpm exec prisma generate
+
 EXPOSE 3000
-CMD ["pnpm", "start:dev"]
+
+# ── Start ─────────────────────────────────────────────────────────────────────
+# Re-run prisma generate on startup so the generated client is always in sync
+# with the bind-mounted schema (for local hot-reload workflow).
+# Then start NestJS in dev mode via Nx.
+CMD ["sh", "-c", "node_modules/.bin/prisma generate && node_modules/.bin/nx reset && pnpm start:dev"]
