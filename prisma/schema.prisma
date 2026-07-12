@@ -1,0 +1,23 @@
+// This is your Prisma schema file.
+// Phase 1: Minimal bootstrap — just the Prisma client setup and a health-check probe.
+// The full 20-entity schema will be defined in Phase 2 (Database Schema).
+//
+// NOTE: Prisma v7 — connection URL is configured in prisma.config.ts
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Phase 1 Bootstrap Model ─────────────────────────────────────────────────
+// A minimal table used only to verify the DB connection at health-check time.
+// This will be replaced/extended in Phase 2.
+model HealthCheck {
+  id        Int      @id @default(autoincrement())
+  checkedAt DateTime @default(now())
+
+  @@map("_health_check")
+}

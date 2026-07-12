@@ -1,1 +1,1 @@
-This is a Dry cleaning and Laundry App
+This is a Dry cleaning and Laundry App. 
