@@ -28,7 +28,7 @@ export class HealthController {
   check() {
     return this.health.check([
       // Database check via Prisma
-      () => this.prismaHealth.pingCheck('database', this.prisma),
+      () => this.prismaHealth.pingCheck('database', this.prisma as any),
 
       // Heap memory < 512MB
       () => this.memory.checkHeap('memory_heap', 512 * 1024 * 1024),

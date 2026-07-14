@@ -18,7 +18,12 @@ import { defineConfig } from 'prisma/config';
  *   - CI/CD: via secrets
  */
 export default defineConfig({
-  datasourceUrl:
-    process.env['DATABASE_URL'] ??
-    'postgresql://savi_user:savi_password@localhost:5432/savi_dev',
+  migrations: {
+    seed: 'npx tsx prisma/seed.ts',
+  },
+  datasource: {
+    url:
+      process.env['DATABASE_URL'] ??
+      'postgresql://savi_user:savi_password@localhost:5432/savi_dev',
+  },
 });

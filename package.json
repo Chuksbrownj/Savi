@@ -12,7 +12,8 @@
     "build": "nx build api",
     "start": "nx serve api",
     "start:dev": "nx serve api",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:seed": "prisma db seed"
   },
   "private": true,
   "dependencies": {
@@ -80,5 +81,8 @@
     "webpack": "^5.101.3",
     "webpack-cli": "^7.0.0",
     "webpack-dev-server": "^5.2.1"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }

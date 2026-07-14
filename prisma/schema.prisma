@@ -1,8 +1,5 @@
 // This is your Prisma schema file.
-// Phase 1: Minimal bootstrap — just the Prisma client setup and a health-check probe.
-// The full 20-entity schema will be defined in Phase 2 (Database Schema).
-//
-// NOTE: Prisma v7 — connection URL is configured in prisma.config.ts
+// Phase 2: Complete 20-entity schema for the Laundry Management Platform
 
 generator client {
   provider = "prisma-client-js"
@@ -12,12 +9,557 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── Phase 1 Bootstrap Model ─────────────────────────────────────────────────
-// A minimal table used only to verify the DB connection at health-check time.
-// This will be replaced/extended in Phase 2.
-model HealthCheck {
-  id        Int      @id @default(autoincrement())
-  checkedAt DateTime @default(now())
+// ─── Enums ─────────────────────────────────────────────────────────────
 
-  @@map("_health_check")
+enum OrderStatus {
+  Draft
+  AwaitingPayment
+  PaymentConfirmed
+  AwaitingPickupAssignment
+  PickupAssigned
+  PickupInProgress
+  LaundryReceived
+  Sorting
+  Washing
+  Drying
+  Ironing
+  Packaging
+  ReadyForDelivery
+  DeliveryAssigned
+  OutForDelivery
+  Delivered
+  Completed
+  Cancelled
+}
+
+enum PaymentMethod {
+  Full
+  Part
+  PayOnDelivery
+}
+
+enum PaymentStatus {
+  Pending
+  PartiallyPaid
+  Paid
+  Failed
+  Refunded
+}
+
+enum UserType {
+  Customer
+  BusinessOwner
+  Staff
+  DispatchRider
+  Admin
+}
+
+enum DispatchTaskType {
+  Pickup
+  Delivery
+}
+
+enum DispatchTaskStatus {
+  Pending
+  Assigned
+  Accepted
+  Rejected
+  InProgress
+  Completed
+  Cancelled
+}
+
+enum RiderAvailability {
+  Online
+  Offline
+  OnJob
+}
+
+enum ServiceType {
+  WashOnly
+  WashAndIron
+  IronOnly
+  DryCleaning
+  Blankets
+  Curtains
+  Shoes
+  Bags
+  SpecialCare
+  Express
+}
+
+enum SettlementStatus {
+  Pending
+  Processing
+  Paid
+  Failed
+}
+
+enum NotificationChannel {
+  Push
+  Email
+  SMS
+  InApp
+}
+
+enum TicketStatus {
+  Open
+  InProgress
+  Resolved
+  Closed
+}
+
+// ─── Identity & Access Management ──────────────────────────────────────
+
+model Role {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  description  String?
+  isSystemRole Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  permissions RolePermission[]
+  staff       StaffProfile[]
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  code        String  @unique // e.g., 'orders:approve'
+  description String?
+  module      String
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String?   @unique
+  phone           String?   @unique
+  passwordHash    String
+  userType        UserType
+  isEmailVerified Boolean   @default(false)
+  isPhoneVerified Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Polymorphic profiles
+  customerProfile      CustomerProfile?
+  staffProfile         StaffProfile?
+  dispatchRiderProfile DispatchRiderProfile?
+
+  // Relations
+  businesses     Business[]      @relation("BusinessOwner")
+  addresses      Address[]
+  notifications  Notification[]
+  supportTickets SupportTicket[]
+  auditLogs      AuditLog[]      @relation("AuditActor")
+}
+
+model CustomerProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  defaultAddressId String?  @unique
+  loyaltyPoints    Int      @default(0)
+  referralCode     String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultAddress Address? @relation("CustomerDefaultAddress", fields: [defaultAddressId], references: [id], onDelete: SetNull)
+
+  orders  Order[]
+  ratings Rating[]
+}
+
+model StaffProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  businessId   String
+  branchId     String
+  roleId       String
+  employeeCode String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  role     Role     @relation(fields: [roleId], references: [id])
+
+  assignedTickets SupportTicket[]
+}
+
+model DispatchRiderProfile {
+  id              String            @id @default(uuid())
+  userId          String            @unique
+  businessId      String
+  vehicleId       String?           @unique
+  availability    RiderAvailability @default(Offline)
+  currentLat      Float?
+  currentLng      Float?
+  rating          Float             @default(0.0)
+  totalDeliveries Int               @default(0)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  dispatchTasks DispatchTask[]
+  settlements   Settlement[]
+  ratings       Rating[]
+}
+
+// ─── Business Models ───────────────────────────────────────────────────
+
+model Business {
+  id                 String    @id @default(uuid())
+  name               String
+  ownerUserId        String
+  registrationNumber String?
+  logo               String?
+  supportEmail       String?
+  supportPhone       String?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  owner User @relation("BusinessOwner", fields: [ownerUserId], references: [id])
+
+  branches        Branch[]
+  staff           StaffProfile[]
+  riders          DispatchRiderProfile[]
+  laundryServices LaundryService[]
+  pricing         Pricing[]
+  orders          Order[]
+  dispatchTasks   DispatchTask[]
+  settlements     Settlement[]
+  ratings         Rating[]
+  promotions      Promotion[]
+}
+
+model Branch {
+  id             String    @id @default(uuid())
+  businessId     String
+  name           String
+  addressId      String    @unique
+  phone          String?
+  operatingHours Json?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  address  Address  @relation(fields: [addressId], references: [id])
+
+  staff  StaffProfile[]
+  orders Order[]
+}
+
+model LaundryService {
+  id          String    @id @default(uuid())
+  businessId  String
+  name        String // Typically maps to ServiceType but stored as string for custom naming
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  pricing    Pricing[]
+  orderItems OrderItem[]
+}
+
+model Pricing {
+  id                      String    @id @default(uuid())
+  businessId              String
+  laundryServiceId        String
+  unit                    String // 'PerItem', 'PerKg', etc.
+  basePrice               Decimal   @db.Decimal(10, 2)
+  expressSurchargePercent Decimal   @default(0) @db.Decimal(5, 2)
+  currency                String    @default("USD")
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  deletedAt               DateTime?
+
+  business       Business       @relation(fields: [businessId], references: [id])
+  laundryService LaundryService @relation(fields: [laundryServiceId], references: [id])
+}
+
+// ─── Logistics ─────────────────────────────────────────────────────────
+
+model Vehicle {
+  id          String   @id @default(uuid())
+  type        String // 'Bike', 'Car', 'Van'
+  plateNumber String
+  model       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  riderProfile DispatchRiderProfile?
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String?
+  label     String?
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  country   String
+  lat       Float?
+  lng       Float?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User?            @relation(fields: [userId], references: [id])
+  customerProfile CustomerProfile? @relation("CustomerDefaultAddress")
+  branch          Branch?
+
+  ordersPickup   Order[] @relation("OrderPickupAddress")
+  ordersDelivery Order[] @relation("OrderDeliveryAddress")
+}
+
+// ─── Operations ────────────────────────────────────────────────────────
+
+model Order {
+  id                  String        @id @default(uuid())
+  orderNumber         String        @unique // Human-readable
+  customerId          String
+  businessId          String
+  branchId            String
+  pickupAddressId     String
+  deliveryAddressId   String
+  status              OrderStatus   @default(Draft)
+  paymentMethod       PaymentMethod
+  paymentStatus       PaymentStatus @default(Pending)
+  subtotal            Decimal       @db.Decimal(10, 2)
+  deliveryFee         Decimal       @db.Decimal(10, 2)
+  discount            Decimal       @default(0) @db.Decimal(10, 2)
+  total               Decimal       @db.Decimal(10, 2)
+  currency            String        @default("USD")
+  scheduledPickupAt   DateTime
+  scheduledDeliveryAt DateTime
+  isExpress           Boolean       @default(false)
+  notes               String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  deletedAt           DateTime?
+
+  customer        CustomerProfile @relation(fields: [customerId], references: [id])
+  business        Business        @relation(fields: [businessId], references: [id])
+  branch          Branch          @relation(fields: [branchId], references: [id])
+  pickupAddress   Address         @relation("OrderPickupAddress", fields: [pickupAddressId], references: [id])
+  deliveryAddress Address         @relation("OrderDeliveryAddress", fields: [deliveryAddressId], references: [id])
+
+  items          OrderItem[]
+  payments       Payment[]
+  dispatchTasks  DispatchTask[]
+  ratings        Rating[]
+  supportTickets SupportTicket[]
+
+  @@index([businessId, status])
+  @@index([customerId, createdAt(sort: Desc)])
+}
+
+model OrderItem {
+  id               String   @id @default(uuid())
+  orderId          String
+  laundryServiceId String
+  description      String?
+  quantity         Int
+  unit             String
+  unitPrice        Decimal  @db.Decimal(10, 2)
+  lineTotal        Decimal  @db.Decimal(10, 2)
+  garmentNotes     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  laundryService LaundryService @relation(fields: [laundryServiceId], references: [id])
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String
+  provider          String // 'Paystack', 'Flutterwave', 'Stripe'
+  providerReference String?       @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("USD")
+  method            PaymentMethod
+  status            PaymentStatus @default(Pending)
+  paidAt            DateTime?
+  rawPayload        Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model DispatchTask {
+  id          String             @id @default(uuid())
+  orderId     String
+  riderId     String? // Assigned ONLY by business
+  businessId  String
+  type        DispatchTaskType
+  status      DispatchTaskStatus @default(Pending)
+  assignedAt  DateTime?
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  order    Order                 @relation(fields: [orderId], references: [id])
+  rider    DispatchRiderProfile? @relation(fields: [riderId], references: [id])
+  business Business              @relation(fields: [businessId], references: [id])
+
+  proofOfDelivery ProofOfDelivery?
+
+  @@index([riderId, status])
+}
+
+model ProofOfDelivery {
+  id             String   @id @default(uuid())
+  dispatchTaskId String   @unique
+  imageUrl       String?
+  signatureUrl   String?
+  recipientName  String?
+  notes          String?
+  capturedAt     DateTime @default(now())
+  lat            Float?
+  lng            Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  dispatchTask DispatchTask @relation(fields: [dispatchTaskId], references: [id], onDelete: Cascade)
+}
+
+model Settlement {
+  id          String           @id @default(uuid())
+  riderId     String
+  businessId  String
+  periodStart DateTime
+  periodEnd   DateTime
+  totalJobs   Int
+  totalAmount Decimal          @db.Decimal(10, 2)
+  status      SettlementStatus @default(Pending)
+  paidAt      DateTime?
+  reference   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  rider    DispatchRiderProfile @relation(fields: [riderId], references: [id])
+  business Business             @relation(fields: [businessId], references: [id])
+}
+
+// ─── Engagement ────────────────────────────────────────────────────────
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String
+  channel   NotificationChannel
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean             @default(false)
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  orderId    String   @unique
+  customerId String
+  riderId    String?
+  businessId String
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  order    Order                 @relation(fields: [orderId], references: [id])
+  customer CustomerProfile       @relation(fields: [customerId], references: [id])
+  rider    DispatchRiderProfile? @relation(fields: [riderId], references: [id])
+  business Business              @relation(fields: [businessId], references: [id])
+}
+
+model SupportTicket {
+  id              String       @id @default(uuid())
+  userId          String
+  orderId         String?
+  subject         String
+  description     String
+  status          TicketStatus @default(Open)
+  assignedStaffId String?
+  resolvedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id])
+  order         Order?        @relation(fields: [orderId], references: [id])
+  assignedStaff StaffProfile? @relation(fields: [assignedStaffId], references: [id])
+}
+
+model Promotion {
+  id            String    @id @default(uuid())
+  businessId    String
+  code          String
+  description   String?
+  discountType  String // 'Percent', 'Fixed'
+  discountValue Decimal   @db.Decimal(10, 2)
+  startsAt      DateTime
+  expiresAt     DateTime?
+  usageLimit    Int?
+  timesUsed     Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, code])
+}
+
+// ─── Security ──────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String
+  beforeState Json?
+  afterState  Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  actorUser User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 }
