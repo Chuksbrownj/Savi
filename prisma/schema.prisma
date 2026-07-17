@@ -144,6 +144,7 @@ model RolePermission {
 
 model User {
   id              String    @id @default(uuid())
+  fullName        String?
   email           String?   @unique
   phone           String?   @unique
   passwordHash    String
@@ -166,6 +167,7 @@ model User {
   notifications  Notification[]
   supportTickets SupportTicket[]
   auditLogs      AuditLog[]      @relation("AuditActor")
+  refreshTokens  RefreshToken[]
 }
 
 model CustomerProfile {
@@ -380,6 +382,7 @@ model Order {
   dispatchTasks  DispatchTask[]
   ratings        Rating[]
   supportTickets SupportTicket[]
+  timeline       OrderTimeline[]
 
   @@index([businessId, status])
   @@index([customerId, createdAt(sort: Desc)])
@@ -400,6 +403,18 @@ model OrderItem {
 
   order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   laundryService LaundryService @relation(fields: [laundryServiceId], references: [id])
+}
+
+model OrderTimeline {
+  id        String      @id @default(uuid())
+  orderId   String
+  status    OrderStatus
+  notes     String?
+  createdAt DateTime    @default(now())
+
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt(sort: Desc)])
 }
 
 model Payment {
@@ -562,4 +577,22 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   actorUser User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+}
+
+// ─── Auth Tokens ───────────────────────────────────────────────────────
+
+model RefreshToken {
+  id              String    @id @default(uuid())
+  userId          String
+  tokenHash       String    @unique
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  replacedById    String?   @unique
+  createdAt       DateTime  @default(now())
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy  RefreshToken? @relation("TokenReplacement", fields: [replacedById], references: [id])
+  replacedFrom RefreshToken? @relation("TokenReplacement")
+
+  @@index([userId])
 }

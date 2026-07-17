@@ -19,7 +19,9 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
 
   // ── URI Versioning: /api/v1/... ──────────────────────────────────────────
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: ['health', 'health/metrics'],
+  });
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',

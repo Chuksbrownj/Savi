@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, VERSION_NEUTRAL } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
   HealthCheck,
@@ -8,9 +8,14 @@ import {
   DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { Public } from '../identity/interface/decorators/public.decorator';
 
 @ApiTags('Health')
-@Controller('health')
+@Public()
+@Controller({
+  path: 'health',
+  version: VERSION_NEUTRAL,
+})
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
