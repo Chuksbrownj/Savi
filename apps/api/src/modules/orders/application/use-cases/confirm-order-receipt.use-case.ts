@@ -8,13 +8,15 @@ import {
   ORDER_REPOSITORY,
   IOrderRepository,
 } from '../../domain/repositories/order.repository.interface';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, UserType } from '@prisma/client';
+import { OrderWorkflowService } from '../../domain/services/order-workflow.service';
 
 @Injectable()
 export class ConfirmOrderReceiptUseCase {
   constructor(
     @Inject(ORDER_REPOSITORY)
     private readonly orderRepo: IOrderRepository,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(orderId: string, customerId: string) {
@@ -29,14 +31,11 @@ export class ConfirmOrderReceiptUseCase {
       );
     }
 
-    const updatedOrder = await this.orderRepo.update(orderId, {
-      status: OrderStatus.Completed,
-    });
-
-    await this.orderRepo.addTimelineEvent(
-      orderId,
+    const updatedOrder = await this.workflowService.transition(
+      order as any,
       OrderStatus.Completed,
-      'Customer confirmed receipt',
+      UserType.Customer,
+      { notes: 'Customer confirmed receipt', actorUserId: customerId },
     );
 
     return updatedOrder;

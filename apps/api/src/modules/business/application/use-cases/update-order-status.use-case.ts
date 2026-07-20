@@ -5,8 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { IBusinessOrderRepository } from '../../domain/repositories/business-order.repository.interface';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, UserType } from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
+import { OrderWorkflowService } from '../../../orders/domain/services/order-workflow.service';
 
 @Injectable()
 export class UpdateOrderStatusUseCase {
@@ -14,6 +15,7 @@ export class UpdateOrderStatusUseCase {
     @Inject('IBusinessOrderRepository')
     private readonly orderRepository: IBusinessOrderRepository,
     private readonly prisma: PrismaService,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(
@@ -36,23 +38,15 @@ export class UpdateOrderStatusUseCase {
         `Cannot change status of order in ${order.status}`,
       );
     }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data: { status: newStatus },
-      });
-
-      await tx.orderTimeline.create({
-        data: {
-          orderId,
-          status: newStatus,
-          notes: notes || `Order status updated to ${newStatus}`,
-        },
-      });
-
-      return updatedOrder;
-    });
+    const updated = await this.workflowService.transition(
+      order as any,
+      newStatus,
+      UserType.BusinessOwner,
+      {
+        notes: notes || `Order status updated to ${newStatus}`,
+        actorUserId: businessId,
+      },
+    );
 
     return updated;
   }

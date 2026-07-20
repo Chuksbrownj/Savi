@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { IdentityModule } from '../identity/identity.module';
+import { OrdersModule } from '../orders/orders.module';
 
 // Controllers
 import { BusinessOrdersController } from './interface/controllers/business-orders.controller';
@@ -37,7 +38,7 @@ import { PrismaBusinessStaffRepository } from './infrastructure/repositories/pri
 import { PrismaBusinessPromoSettleRepository } from './infrastructure/repositories/prisma-business-promo-settle.repository';
 
 @Module({
-  imports: [PrismaModule, IdentityModule],
+  imports: [PrismaModule, IdentityModule, OrdersModule],
   controllers: [
     BusinessOrdersController,
     BusinessDispatchController,

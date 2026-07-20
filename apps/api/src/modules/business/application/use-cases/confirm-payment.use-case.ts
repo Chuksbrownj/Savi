@@ -5,8 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { IBusinessOrderRepository } from '../../domain/repositories/business-order.repository.interface';
-import { OrderStatus, PaymentStatus, PaymentMethod } from '@prisma/client';
+import {
+  OrderStatus,
+  PaymentStatus,
+  PaymentMethod,
+  UserType,
+} from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
+import { OrderWorkflowService } from '../../../orders/domain/services/order-workflow.service';
 
 @Injectable()
 export class ConfirmPaymentUseCase {
@@ -14,6 +20,7 @@ export class ConfirmPaymentUseCase {
     @Inject('IBusinessOrderRepository')
     private readonly orderRepository: IBusinessOrderRepository,
     private readonly prisma: PrismaService,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(
@@ -32,7 +39,7 @@ export class ConfirmPaymentUseCase {
       throw new BadRequestException('Order is already fully paid');
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
+    let updated = await this.prisma.$transaction(async (tx) => {
       // Create payment record
       await tx.payment.create({
         data: {
@@ -62,34 +69,30 @@ export class ConfirmPaymentUseCase {
       } else if (totalPaid > 0) {
         newPaymentStatus = PaymentStatus.PartiallyPaid;
       }
-
-      const updatedOrder = await tx.order.update({
+      let updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
           paymentStatus: newPaymentStatus,
-          status:
-            newPaymentStatus === PaymentStatus.Paid &&
-            order.status === OrderStatus.AwaitingPayment
-              ? OrderStatus.PaymentConfirmed
-              : order.status,
         },
       });
 
-      if (
-        updatedOrder.status === OrderStatus.PaymentConfirmed &&
-        order.status !== OrderStatus.PaymentConfirmed
-      ) {
-        await tx.orderTimeline.create({
-          data: {
-            orderId,
-            status: OrderStatus.PaymentConfirmed,
-            notes: 'Payment confirmed manually by business operator',
-          },
-        });
-      }
-
       return updatedOrder;
     });
+
+    if (
+      updated.paymentStatus === PaymentStatus.Paid &&
+      order.status === OrderStatus.AwaitingPayment
+    ) {
+      updated = await this.workflowService.transition(
+        updated as any,
+        OrderStatus.PaymentConfirmed,
+        UserType.BusinessOwner,
+        {
+          notes: 'Payment confirmed manually by business operator',
+          actorUserId: businessId,
+        },
+      );
+    }
 
     return updated;
   }

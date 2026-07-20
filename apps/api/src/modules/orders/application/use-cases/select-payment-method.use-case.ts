@@ -13,8 +13,9 @@ import {
   IPaymentInitiationService,
 } from '../../infrastructure/payments/payment-initiation.interface';
 import { SelectPaymentMethodDto } from '../dtos/order.dto';
-import { OrderStatus, PaymentMethod } from '@prisma/client';
+import { OrderStatus, PaymentMethod, UserType } from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
+import { OrderWorkflowService } from '../../domain/services/order-workflow.service';
 
 @Injectable()
 export class SelectPaymentMethodUseCase {
@@ -24,6 +25,7 @@ export class SelectPaymentMethodUseCase {
     @Inject(PAYMENT_INITIATION_SERVICE)
     private readonly paymentService: IPaymentInitiationService,
     private readonly prisma: PrismaService,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(
@@ -68,14 +70,14 @@ export class SelectPaymentMethodUseCase {
     }
 
     // Move to AwaitingPayment
-    const updatedOrder = await this.orderRepo.update(orderId, {
-      status: OrderStatus.AwaitingPayment,
-    });
-
-    await this.orderRepo.addTimelineEvent(
-      orderId,
+    const updatedOrder = await this.workflowService.transition(
+      order as any,
       OrderStatus.AwaitingPayment,
-      `Payment method selected: ${dto.method}`,
+      UserType.Customer,
+      {
+        notes: `Payment method selected: ${dto.method}`,
+        actorUserId: customerId,
+      },
     );
 
     // If it's not PayOnDelivery, initiate payment intent

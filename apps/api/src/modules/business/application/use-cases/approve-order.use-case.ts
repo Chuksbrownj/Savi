@@ -5,8 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { IBusinessOrderRepository } from '../../domain/repositories/business-order.repository.interface';
-import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import {
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  UserType,
+} from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
+import { OrderWorkflowService } from '../../../orders/domain/services/order-workflow.service';
 
 @Injectable()
 export class ApproveOrderUseCase {
@@ -14,6 +20,7 @@ export class ApproveOrderUseCase {
     @Inject('IBusinessOrderRepository')
     private readonly orderRepository: IBusinessOrderRepository,
     private readonly prisma: PrismaService,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(businessId: string, orderId: string) {
@@ -59,23 +66,12 @@ export class ApproveOrderUseCase {
       );
     }
 
-    // We use Prisma directly for transaction to create timeline entry
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data: { status: OrderStatus.AwaitingPickupAssignment },
-      });
-
-      await tx.orderTimeline.create({
-        data: {
-          orderId,
-          status: OrderStatus.AwaitingPickupAssignment,
-          notes: 'Order approved by business operator',
-        },
-      });
-
-      return updatedOrder;
-    });
+    const updated = await this.workflowService.transition(
+      order as any,
+      OrderStatus.AwaitingPickupAssignment,
+      UserType.BusinessOwner,
+      { notes: 'Order approved by business operator', actorUserId: businessId },
+    );
 
     return updated;
   }

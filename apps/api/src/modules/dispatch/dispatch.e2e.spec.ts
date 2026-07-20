@@ -4,7 +4,7 @@ import {
   ValidationPipe,
   VersioningType,
 } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../app/app.module';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -232,8 +232,12 @@ describe('Dispatch Rider Module End-to-End Flow (e2e)', () => {
         .set('Authorization', `Bearer ${businessToken}`)
         .send({
           riderId, // explicit assignment for this test
-        })
-        .expect(201);
+        });
+
+      if (res.status !== 201) {
+        console.error('FAILED ASSIGNMENT:', res.body);
+      }
+      expect(res.status).toBe(201);
 
       expect(res.body).toHaveProperty('id');
       expect(res.body.status).toBe(DispatchTaskStatus.Assigned);

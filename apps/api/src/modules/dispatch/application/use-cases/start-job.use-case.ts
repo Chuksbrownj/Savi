@@ -12,8 +12,10 @@ import {
   DispatchTaskStatus,
   DispatchTaskType,
   OrderStatus,
+  UserType,
 } from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
+import { OrderWorkflowService } from '../../../orders/domain/services/order-workflow.service';
 
 @Injectable()
 export class StartJobUseCase {
@@ -21,6 +23,7 @@ export class StartJobUseCase {
     @Inject(DISPATCH_REPOSITORY)
     private readonly dispatchRepository: IDispatchRepository,
     private readonly prisma: PrismaService,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(userId: string, taskId: string) {
@@ -56,18 +59,14 @@ export class StartJobUseCase {
         data: { status: DispatchTaskStatus.InProgress },
       });
 
-      await tx.order.update({
-        where: { id: job.orderId },
-        data: { status: newOrderStatus },
-      });
-
-      await tx.orderTimeline.create({
-        data: {
-          orderId: job.orderId,
-          status: newOrderStatus,
-          notes: `Task ${job.type} started by rider`,
-        } as any,
-      });
+      const order = await tx.order.findUnique({ where: { id: job.orderId } });
+      await this.workflowService.transition(
+        order as any,
+        newOrderStatus,
+        UserType.DispatchRider,
+        { notes: `Task ${job.type} started by rider`, actorUserId: userId },
+        tx,
+      );
 
       return updatedJob;
     });

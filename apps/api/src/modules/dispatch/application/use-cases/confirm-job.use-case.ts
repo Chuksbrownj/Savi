@@ -13,9 +13,11 @@ import {
   DispatchTaskType,
   OrderStatus,
   RiderAvailability,
+  UserType,
 } from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
 import { ConfirmJobDto } from '../../interface/dtos/confirm-job.dto';
+import { OrderWorkflowService } from '../../../orders/domain/services/order-workflow.service';
 
 @Injectable()
 export class ConfirmJobUseCase {
@@ -23,6 +25,7 @@ export class ConfirmJobUseCase {
     @Inject(DISPATCH_REPOSITORY)
     private readonly dispatchRepository: IDispatchRepository,
     private readonly prisma: PrismaService,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(userId: string, taskId: string, dto: ConfirmJobDto) {
@@ -73,21 +76,16 @@ export class ConfirmJobUseCase {
       });
 
       // 3. Update Order
-      await tx.order.update({
-        where: { id: job.orderId },
-        data: { status: newOrderStatus },
-      });
+      const order = await tx.order.findUnique({ where: { id: job.orderId } });
+      await this.workflowService.transition(
+        order as any,
+        newOrderStatus,
+        UserType.DispatchRider,
+        { notes: `Task ${job.type} completed by rider`, actorUserId: userId },
+        tx,
+      );
 
-      // 4. Create OrderTimeline
-      await tx.orderTimeline.create({
-        data: {
-          orderId: job.orderId,
-          status: newOrderStatus,
-          notes: `Task ${job.type} completed by rider`,
-        } as any,
-      });
-
-      // 5. Revert Rider Availability to Online
+      // 4. Revert Rider Availability to Online
       await tx.dispatchRiderProfile.update({
         where: { id: profile.id },
         data: { availability: RiderAvailability.Online },

@@ -162,12 +162,13 @@ model User {
   dispatchRiderProfile DispatchRiderProfile?
 
   // Relations
-  businesses     Business[]      @relation("BusinessOwner")
+  businesses     Business[]           @relation("BusinessOwner")
   addresses      Address[]
   notifications  Notification[]
   supportTickets SupportTicket[]
-  auditLogs      AuditLog[]      @relation("AuditActor")
+  auditLogs      AuditLog[]           @relation("AuditActor")
   refreshTokens  RefreshToken[]
+  statusHistory  OrderStatusHistory[] @relation("StatusHistoryActor")
 }
 
 model CustomerProfile {
@@ -255,6 +256,7 @@ model Business {
   settlements     Settlement[]
   ratings         Rating[]
   promotions      Promotion[]
+  feeConfig       DispatchFeeConfig?
 }
 
 model Branch {
@@ -383,6 +385,7 @@ model Order {
   ratings        Rating[]
   supportTickets SupportTicket[]
   timeline       OrderTimeline[]
+  statusHistory  OrderStatusHistory[]
 
   @@index([businessId, status])
   @@index([customerId, createdAt(sort: Desc)])
@@ -412,7 +415,23 @@ model OrderTimeline {
   notes     String?
   createdAt DateTime    @default(now())
 
-  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt(sort: Desc)])
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid())
+  orderId     String
+  fromStatus  OrderStatus
+  toStatus    OrderStatus
+  actorUserId String?
+  actorType   String // UserType or 'System'
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation("StatusHistoryActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([orderId, createdAt(sort: Desc)])
 }
@@ -432,6 +451,9 @@ model Payment {
   updatedAt         DateTime      @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  discrepancies PaymentDiscrepancy[]
+  refunds       Refund[]
 }
 
 model DispatchTask {
@@ -582,17 +604,57 @@ model AuditLog {
 // ─── Auth Tokens ───────────────────────────────────────────────────────
 
 model RefreshToken {
-  id              String    @id @default(uuid())
-  userId          String
-  tokenHash       String    @unique
-  expiresAt       DateTime
-  revokedAt       DateTime?
-  replacedById    String?   @unique
-  createdAt       DateTime  @default(now())
+  id           String    @id @default(uuid())
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @unique
+  createdAt    DateTime  @default(now())
 
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  replacedBy  RefreshToken? @relation("TokenReplacement", fields: [replacedById], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy   RefreshToken? @relation("TokenReplacement", fields: [replacedById], references: [id])
   replacedFrom RefreshToken? @relation("TokenReplacement")
 
   @@index([userId])
+}
+
+// ─── Payments & Settlements ──────────────────────────────────────────
+
+model DispatchFeeConfig {
+  id            String   @id @default(uuid())
+  businessId    String   @unique
+  flatFeePerJob Decimal  @db.Decimal(10, 2)
+  currency      String   @default("USD")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model PaymentDiscrepancy {
+  id                String   @id @default(uuid())
+  paymentId         String?
+  providerReference String?
+  expectedAmount    Decimal? @db.Decimal(10, 2)
+  actualAmount      Decimal? @db.Decimal(10, 2)
+  status            String   @default("Unresolved") // "Unresolved", "Resolved"
+  description       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+}
+
+model Refund {
+  id                String   @id @default(uuid())
+  paymentId         String
+  amount            Decimal  @db.Decimal(10, 2)
+  reason            String?
+  status            String   @default("Pending") // "Pending", "Completed", "Failed"
+  providerReference String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 }

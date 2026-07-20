@@ -7,7 +7,8 @@ import {
 import { IBusinessOrderRepository } from '../../domain/repositories/business-order.repository.interface';
 import { IBusinessDispatchRepository } from '../../domain/repositories/business-dispatch.repository.interface';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
-import { DispatchTaskType, OrderStatus } from '@prisma/client';
+import { DispatchTaskType, OrderStatus, UserType } from '@prisma/client';
+import { OrderWorkflowService } from '../../../orders/domain/services/order-workflow.service';
 
 @Injectable()
 export class AutoAssignDispatchRiderUseCase {
@@ -17,6 +18,7 @@ export class AutoAssignDispatchRiderUseCase {
     @Inject('IBusinessDispatchRepository')
     private readonly dispatchRepository: IBusinessDispatchRepository,
     private readonly prisma: PrismaService,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(businessId: string, orderId: string, type: DispatchTaskType) {
@@ -135,28 +137,22 @@ export class AutoAssignDispatchRiderUseCase {
         },
       });
 
-      const newStatus =
-        type === DispatchTaskType.Pickup
-          ? OrderStatus.PickupAssigned
-          : OrderStatus.DeliveryAssigned;
-
-      const orderUpdated = await tx.order.update({
-        where: { id: orderId },
-        data: { status: newStatus },
-      });
-
-      await tx.orderTimeline.create({
-        data: {
-          orderId,
-          status: newStatus,
-          notes: `Auto-assigned ${type} to dispatch rider ${selectedRiderId}`,
-        },
-      });
-
       return task;
     });
 
-    return updatedOrder;
+    const newStatus =
+      type === DispatchTaskType.Pickup
+        ? OrderStatus.PickupAssigned
+        : OrderStatus.DeliveryAssigned;
+
+    const transitionedOrder = await this.workflowService.transition(
+      order as any,
+      newStatus,
+      'System',
+      { notes: `Auto-assigned ${type} to dispatch rider ${selectedRiderId}` },
+    );
+
+    return transitionedOrder;
   }
 
   /**

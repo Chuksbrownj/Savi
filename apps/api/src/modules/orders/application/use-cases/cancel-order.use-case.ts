@@ -8,13 +8,15 @@ import {
   ORDER_REPOSITORY,
   IOrderRepository,
 } from '../../domain/repositories/order.repository.interface';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, UserType } from '@prisma/client';
+import { OrderWorkflowService } from '../../domain/services/order-workflow.service';
 
 @Injectable()
 export class CancelOrderUseCase {
   constructor(
     @Inject(ORDER_REPOSITORY)
     private readonly orderRepo: IOrderRepository,
+    private readonly workflowService: OrderWorkflowService,
   ) {}
 
   async execute(orderId: string, customerId: string) {
@@ -33,14 +35,11 @@ export class CancelOrderUseCase {
       throw new BadRequestException('Order cannot be cancelled at this stage');
     }
 
-    const updatedOrder = await this.orderRepo.update(orderId, {
-      status: OrderStatus.Cancelled,
-    });
-
-    await this.orderRepo.addTimelineEvent(
-      orderId,
+    const updatedOrder = await this.workflowService.transition(
+      order as any,
       OrderStatus.Cancelled,
-      'Order cancelled by customer',
+      UserType.Customer,
+      { notes: 'Order cancelled by customer', actorUserId: customerId },
     );
 
     return updatedOrder;

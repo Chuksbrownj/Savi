@@ -3,6 +3,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { configModuleOptions } from '../config/validation.schema';
 import {
@@ -86,6 +87,7 @@ import { AuditLogInterceptor } from '../common/interceptors/audit-log.intercepto
     // ── Infrastructure ────────────────────────────────────────────────────
     PrismaModule,
     QueueModule,
+    EventEmitterModule.forRoot(),
 
     // ── Feature Modules ───────────────────────────────────────────────────
     SharedKernelModule,

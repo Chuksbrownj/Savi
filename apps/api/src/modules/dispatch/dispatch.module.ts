@@ -11,9 +11,10 @@ import { GetRiderEarningsUseCase } from './application/use-cases/get-rider-earni
 import { DISPATCH_REPOSITORY } from './domain/repositories/dispatch.repository.interface';
 import { PrismaDispatchRepository } from './infrastructure/repositories/prisma-dispatch.repository';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
+import { OrdersModule } from '../orders/orders.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, OrdersModule],
   controllers: [DispatchController],
   providers: [
     {

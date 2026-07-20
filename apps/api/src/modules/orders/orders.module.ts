@@ -25,6 +25,8 @@ import { GetOrderTimelineUseCase } from './application/use-cases/get-order-timel
 import { ConfirmOrderReceiptUseCase } from './application/use-cases/confirm-order-receipt.use-case';
 import { CancelOrderUseCase } from './application/use-cases/cancel-order.use-case';
 import { RateOrderUseCase } from './application/use-cases/rate-order.use-case';
+import { OrderWorkflowService } from './domain/services/order-workflow.service';
+import { OrderAutoCompletionProcessor } from './application/jobs/order-auto-completion.processor';
 
 @Module({
   imports: [PrismaModule],
@@ -57,7 +59,9 @@ import { RateOrderUseCase } from './application/use-cases/rate-order.use-case';
     ConfirmOrderReceiptUseCase,
     CancelOrderUseCase,
     RateOrderUseCase,
+    OrderWorkflowService,
+    OrderAutoCompletionProcessor,
   ],
-  exports: [ORDER_REPOSITORY, PAYMENT_INITIATION_SERVICE],
+  exports: [ORDER_REPOSITORY, PAYMENT_INITIATION_SERVICE, OrderWorkflowService],
 })
 export class OrdersModule {}

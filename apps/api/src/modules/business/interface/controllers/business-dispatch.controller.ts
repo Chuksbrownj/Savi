@@ -62,6 +62,7 @@ export class BusinessDispatchController {
       id,
       dto.riderId,
       DispatchTaskType.Pickup,
+      req.user.id,
     );
   }
 
@@ -78,6 +79,7 @@ export class BusinessDispatchController {
       id,
       dto.riderId,
       DispatchTaskType.Delivery,
+      req.user.id,
     );
   }
 
