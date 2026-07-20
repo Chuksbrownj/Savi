@@ -2,15 +2,17 @@ import { Reflector } from '@nestjs/core';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { RolesGuard } from './roles.guard';
 
-function buildContext(
-  user: any,
-  handlerPermissions?: string[],
-): ExecutionContext {
-  const reflector = new Reflector();
-  jest
-    .spyOn(reflector, 'getAllAndOverride')
-    .mockReturnValue(handlerPermissions ?? null);
+function buildReflector(permissions?: string[], roles?: string[]) {
+  return {
+    getAllAndOverride: jest.fn((key: string) => {
+      if (key === 'permissions') return permissions;
+      if (key === 'roles') return roles;
+      return undefined;
+    }),
+  } as unknown as Reflector;
+}
 
+function buildContext(user: any): ExecutionContext {
   return {
     getHandler: () => ({}),
     getClass: () => ({}),
@@ -32,32 +34,38 @@ function buildPrisma(permCodes: string[]) {
 
 describe('RolesGuard', () => {
   it('passes when no permissions required', async () => {
-    const guard = new RolesGuard(new Reflector(), buildPrisma([]) as any);
-    const ctx = buildContext({ id: 'u1', roleId: 'r1' }, undefined);
+    const guard = new RolesGuard(
+      buildReflector(undefined),
+      buildPrisma([]) as any,
+    );
+    const ctx = buildContext({ id: 'u1', roleId: 'r1' });
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
   it('passes when user has the required permission', async () => {
     const guard = new RolesGuard(
-      new Reflector(),
+      buildReflector(['orders:approve']),
       buildPrisma(['orders:approve']) as any,
     );
-    const ctx = buildContext({ id: 'u1', roleId: 'r1' }, ['orders:approve']);
+    const ctx = buildContext({ id: 'u1', roleId: 'r1' });
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
   it('throws ForbiddenException when user lacks the required permission', async () => {
     const guard = new RolesGuard(
-      new Reflector(),
+      buildReflector(['orders:approve']),
       buildPrisma(['orders:view']) as any,
     );
-    const ctx = buildContext({ id: 'u1', roleId: 'r1' }, ['orders:approve']);
+    const ctx = buildContext({ id: 'u1', roleId: 'r1' });
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
   });
 
   it('throws ForbiddenException when user has no roleId', async () => {
-    const guard = new RolesGuard(new Reflector(), buildPrisma([]) as any);
-    const ctx = buildContext({ id: 'u1', roleId: null }, ['orders:approve']);
+    const guard = new RolesGuard(
+      buildReflector(['orders:approve']),
+      buildPrisma([]) as any,
+    );
+    const ctx = buildContext({ id: 'u1', roleId: null });
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
   });
 });
