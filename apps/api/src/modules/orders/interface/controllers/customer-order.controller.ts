@@ -36,7 +36,7 @@ import {
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserType.Customer)
-@Controller('api/v1/customer/orders')
+@Controller('customer/orders')
 export class CustomerOrderController {
   constructor(
     private readonly createOrder: CreateOrderUseCase,

@@ -10,8 +10,15 @@ import { AuthenticatedUser } from '../../infrastructure/jwt/jwt.strategy';
  *   getProfile(@CurrentUser() user: AuthenticatedUser) { ... }
  */
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): AuthenticatedUser => {
+  (
+    data: keyof AuthenticatedUser | 'sub' | undefined,
+    ctx: ExecutionContext,
+  ) => {
     const request = ctx.switchToHttp().getRequest();
-    return request.user as AuthenticatedUser;
+    const user = request.user as AuthenticatedUser;
+
+    if (!data) return user;
+    if (data === 'sub') return user.id;
+    return user[data as keyof AuthenticatedUser];
   },
 );

@@ -35,7 +35,7 @@ import { CreateSupportTicketDto } from '../../application/dtos/support-ticket.dt
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserType.Customer)
-@Controller('api/v1/customer')
+@Controller('customer')
 export class CustomerController {
   constructor(
     private readonly getProfile: GetCustomerProfileUseCase,

@@ -10,7 +10,7 @@ import {
 } from '../../application/dtos/catalog.dto';
 
 @ApiTags('Catalog')
-@Controller('api/v1/businesses')
+@Controller('businesses')
 export class CatalogController {
   constructor(
     private readonly listBusinesses: ListBusinessesUseCase,

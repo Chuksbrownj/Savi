@@ -1,0 +1,15 @@
+{
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["**/payments/**", "**/payment.repository*"],
+            "message": "Dispatch module is strictly prohibited from interacting with the Payment module or repositories."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -5,7 +5,7 @@
   "scripts": {
     "lint": "nx run-many --target=lint --all",
     "test": "nx run-many --target=test --all",
-    "test:e2e": "nx run api-e2e:test",
+    "test:e2e": "nx run api-e2e:e2e",
     "type-check": "tsc --noEmit -p tsconfig.base.json",
     "format": "prettier --write \"**/*.{ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,json,md}\"",
