@@ -8,18 +8,18 @@ import axios from 'axios';
  * Requires: `docker-compose up -d` (postgres + redis) before running.
  */
 describe('Phase 1 — Foundation & Architecture (E2E)', () => {
-  describe('GET /health', () => {
+  describe('GET /api/v1/health', () => {
     it('should return 200 with status ok when all services are up', async () => {
-      const res = await axios.get('/health');
+      const res = await axios.get('/api/v1/health');
       expect(res.status).toBe(200);
       expect(res.data).toHaveProperty('data');
       expect(res.data.data).toHaveProperty('status', 'ok');
     });
   });
 
-  describe('GET /health/metrics', () => {
+  describe('GET /api/v1/health/metrics', () => {
     it('should return 200 with metrics stub response', async () => {
-      const res = await axios.get('/health/metrics');
+      const res = await axios.get('/api/v1/health/metrics');
       expect(res.status).toBe(200);
       expect(res.data).toHaveProperty('data');
     });
@@ -32,4 +32,3 @@ describe('Phase 1 — Foundation & Architecture (E2E)', () => {
     });
   });
 });
-
