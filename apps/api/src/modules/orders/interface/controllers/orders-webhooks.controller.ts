@@ -1,30 +1,26 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Controller, Post, Logger } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PrismaService } from '../../../../infrastructure/prisma/prisma.service';
 import { OrderWorkflowService } from '../../domain/services/order-workflow.service';
 import { OrderStatus } from '@prisma/client';
 
-@Injectable()
-@Processor('order-auto-completion')
-export class OrderAutoCompletionProcessor extends WorkerHost {
-  private readonly logger = new Logger(OrderAutoCompletionProcessor.name);
+@ApiTags('orders-webhooks')
+@Controller('v1/orders/webhooks')
+export class OrdersWebhooksController {
+  private readonly logger = new Logger(OrdersWebhooksController.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly workflowService: OrderWorkflowService,
-  ) {
-    super();
-  }
+  ) {}
 
-  async process(job: Job<any, any, string>): Promise<any> {
-    this.logger.log('Running OrderAutoCompletionProcessor...');
+  @Post('qstash/auto-complete')
+  @ApiOperation({ summary: 'Auto-complete stale orders via QStash cron' })
+  async handleQStashAutoComplete() {
+    this.logger.log('Running Order Auto Completion Job via Webhook...');
 
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
-    // Find orders that have been in Delivered state for > 48 hours
-    // To do this, we can look at OrderStatusHistory where toStatus = Delivered and createdAt <= 48h ago
-    // Or just look at orders where status is Delivered and updatedAt <= 48h ago
     const staleOrders = await this.prisma.order.findMany({
       where: {
         status: OrderStatus.Delivered,
@@ -43,8 +39,7 @@ export class OrderAutoCompletionProcessor extends WorkerHost {
           OrderStatus.Completed,
           'System',
           {
-            notes:
-              'Auto-completed after 48 hours without customer confirmation',
+            notes: 'Auto-completed after 48 hours without customer confirmation',
           },
         );
         this.logger.log(`Auto-completed order ${order.id}`);
@@ -54,5 +49,7 @@ export class OrderAutoCompletionProcessor extends WorkerHost {
         );
       }
     }
+
+    return { success: true, processed: staleOrders.length };
   }
 }

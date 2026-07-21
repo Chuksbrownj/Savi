@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { IdentityModule } from '../identity/identity.module';
 import { OrdersModule } from '../orders/orders.module';
+import { CacheModule } from '@nestjs/cache-manager';
 
 // Controllers
 import { BusinessOrdersController } from './interface/controllers/business-orders.controller';
@@ -11,6 +12,10 @@ import { BusinessBranchesController } from './interface/controllers/business-bra
 import { BusinessStaffController } from './interface/controllers/business-staff.controller';
 import { BusinessCustomersController } from './interface/controllers/business-customers.controller';
 import { BusinessPromoSettleController } from './interface/controllers/business-promo-settle.controller';
+import { BusinessDashboardController } from './interface/controllers/business-dashboard.controller';
+import { BusinessAuditController } from './interface/controllers/business-audit.controller';
+import { BusinessReportsController } from './interface/controllers/business-reports.controller';
+import { BusinessWebhooksController } from './interface/controllers/business-webhooks.controller';
 
 // Use Cases
 import { GetBusinessOrdersUseCase } from './application/use-cases/get-business-orders.use-case';
@@ -29,6 +34,9 @@ import { ManageStaffUseCases } from './application/use-cases/manage-staff.use-ca
 import { BusinessCustomersUseCases } from './application/use-cases/business-customers.use-cases';
 import { ManagePromotionsUseCases } from './application/use-cases/manage-promotions.use-cases';
 import { ManageSettlementsUseCases } from './application/use-cases/manage-settlements.use-cases';
+import { AnalyticsDashboardUseCases } from './application/use-cases/analytics-dashboard.use-cases';
+import { BusinessAuditUseCases } from './application/use-cases/business-audit.use-cases';
+import { GenerateReportUseCase } from './application/use-cases/generate-report.use-case';
 
 // Repositories
 import { PrismaBusinessOrderRepository } from './infrastructure/repositories/prisma-business-order.repository';
@@ -38,7 +46,12 @@ import { PrismaBusinessStaffRepository } from './infrastructure/repositories/pri
 import { PrismaBusinessPromoSettleRepository } from './infrastructure/repositories/prisma-business-promo-settle.repository';
 
 @Module({
-  imports: [PrismaModule, IdentityModule, OrdersModule],
+  imports: [
+    PrismaModule,
+    IdentityModule,
+    OrdersModule,
+    CacheModule.register(),
+  ],
   controllers: [
     BusinessOrdersController,
     BusinessDispatchController,
@@ -47,6 +60,10 @@ import { PrismaBusinessPromoSettleRepository } from './infrastructure/repositori
     BusinessStaffController,
     BusinessCustomersController,
     BusinessPromoSettleController,
+    BusinessDashboardController,
+    BusinessAuditController,
+    BusinessReportsController,
+    BusinessWebhooksController,
   ],
   providers: [
     // Use Cases
@@ -66,6 +83,9 @@ import { PrismaBusinessPromoSettleRepository } from './infrastructure/repositori
     BusinessCustomersUseCases,
     ManagePromotionsUseCases,
     ManageSettlementsUseCases,
+    AnalyticsDashboardUseCases,
+    BusinessAuditUseCases,
+    GenerateReportUseCase,
 
     // Repositories
     {

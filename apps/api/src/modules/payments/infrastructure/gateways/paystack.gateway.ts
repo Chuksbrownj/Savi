@@ -6,6 +6,7 @@ import {
   PaymentInitiationResult,
   PaymentVerificationResult,
   PayoutResult,
+  RefundResult,
 } from '../../domain/interfaces/payment-gateway.interface';
 import { PaymentMethod } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -136,6 +137,37 @@ export class PaystackGateway implements IPaymentGateway, IPayoutGateway {
     return {
       success: true,
       reference: data.data.reference,
+      rawPayload: data.data,
+    };
+  }
+
+  async refund(paymentReference: string, amount: number): Promise<RefundResult> {
+    this.logger.log(`Initiating refund for payment ${paymentReference}`);
+
+    const amountInMinor = Math.round(amount * 100);
+
+    const response = await fetch(`${this.baseUrl}/refund`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transaction: paymentReference,
+        amount: amountInMinor,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!data.status) {
+      this.logger.error(`Paystack refund failed: ${data.message}`);
+      throw new Error(data.message || 'Failed to initiate refund');
+    }
+
+    return {
+      success: true,
+      reference: data.data.transaction?.reference || paymentReference,
       rawPayload: data.data,
     };
   }

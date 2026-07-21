@@ -6,6 +6,7 @@ import {
   PaymentInitiationResult,
   PaymentVerificationResult,
   PayoutResult,
+  RefundResult,
 } from '../../domain/interfaces/payment-gateway.interface';
 import { PaymentMethod } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -144,5 +145,9 @@ export class FlutterwaveGateway implements IPaymentGateway, IPayoutGateway {
       reference: data.data.reference || String(data.data.id),
       rawPayload: data.data,
     };
+  }
+
+  async refund(paymentReference: string, amount: number): Promise<RefundResult> {
+    throw new Error('Refund not implemented for Flutterwave yet.');
   }
 }

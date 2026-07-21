@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CustomerOrderController } from './interface/controllers/customer-order.controller';
+import { OrdersWebhooksController } from './interface/controllers/orders-webhooks.controller';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 
 import { ORDER_REPOSITORY } from './domain/repositories/order.repository.interface';
@@ -26,11 +27,10 @@ import { ConfirmOrderReceiptUseCase } from './application/use-cases/confirm-orde
 import { CancelOrderUseCase } from './application/use-cases/cancel-order.use-case';
 import { RateOrderUseCase } from './application/use-cases/rate-order.use-case';
 import { OrderWorkflowService } from './domain/services/order-workflow.service';
-import { OrderAutoCompletionProcessor } from './application/jobs/order-auto-completion.processor';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [CustomerOrderController],
+  controllers: [CustomerOrderController, OrdersWebhooksController],
   providers: [
     {
       provide: ORDER_REPOSITORY,
@@ -60,7 +60,6 @@ import { OrderAutoCompletionProcessor } from './application/jobs/order-auto-comp
     CancelOrderUseCase,
     RateOrderUseCase,
     OrderWorkflowService,
-    OrderAutoCompletionProcessor,
   ],
   exports: [ORDER_REPOSITORY, PAYMENT_INITIATION_SERVICE, OrderWorkflowService],
 })

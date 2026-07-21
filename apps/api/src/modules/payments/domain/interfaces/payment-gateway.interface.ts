@@ -20,6 +20,12 @@ export interface PayoutResult {
   rawPayload?: any;
 }
 
+export interface RefundResult {
+  success: boolean;
+  reference: string;
+  rawPayload?: any;
+}
+
 export interface IPaymentGateway {
   initiate(
     orderId: string,
@@ -32,6 +38,8 @@ export interface IPaymentGateway {
   verify(reference: string): Promise<PaymentVerificationResult>;
 
   verifyWebhookSignature(payload: any, signature: string): boolean;
+
+  refund(paymentReference: string, amount: number): Promise<RefundResult>;
 }
 
 export interface IPayoutGateway {

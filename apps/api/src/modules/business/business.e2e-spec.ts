@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from '../../app.module';
+import request from 'supertest';
+import { AppModule } from '../../app/app.module';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 
@@ -28,14 +28,23 @@ describe('Business Module (e2e)', () => {
     jwtService = app.get<JwtService>(JwtService);
 
     // Setup Test Data
+    const ownerUser = await prisma.user.create({
+      data: {
+        email: 'owner@test.com',
+        passwordHash: 'hash',
+        userType: 'BusinessOwner',
+        isActive: true,
+      },
+    });
+
     const business = await prisma.business.create({
-      data: { name: 'Test Business', registrationNumber: '123' },
+      data: { name: 'Test Business', registrationNumber: '123', ownerUserId: ownerUser.id },
     });
     businessId = business.id;
 
     const address = await prisma.address.create({
       data: {
-        street: '123 Test St',
+        line1: '123 Test St',
         city: 'Test',
         state: 'Test',
         country: 'Test',
@@ -48,15 +57,21 @@ describe('Business Module (e2e)', () => {
     branchId = branch.id;
 
     const role = await prisma.role.create({
-      data: { name: 'Admin', type: 'BusinessOwner' },
+      data: { name: 'Admin' },
     });
 
     // Add permission for orders
-    await prisma.rolePermission.create({
-      data: { roleId: role.id, action: 'orders:read', resource: 'Order' },
+    const permRead = await prisma.permission.create({
+      data: { code: 'orders:read', module: 'Order' },
     });
     await prisma.rolePermission.create({
-      data: { roleId: role.id, action: 'orders:approve', resource: 'Order' },
+      data: { roleId: role.id, permissionId: permRead.id },
+    });
+    const permApprove = await prisma.permission.create({
+      data: { code: 'orders:approve', module: 'Order' },
+    });
+    await prisma.rolePermission.create({
+      data: { roleId: role.id, permissionId: permApprove.id },
     });
 
     const user = await prisma.user.create({
@@ -98,7 +113,12 @@ describe('Business Module (e2e)', () => {
         customerId: customer.id,
         branchId,
         status: 'PaymentConfirmed',
-        totalAmount: 1000,
+        orderNumber: 'ORD-' + Date.now(),
+        pickupAddressId: address.id,
+        deliveryAddressId: address.id,
+        subtotal: 1000,
+        deliveryFee: 0,
+        total: 1000,
         paymentMethod: 'Full',
         paymentStatus: 'Paid',
         scheduledPickupAt: new Date(),
@@ -114,9 +134,9 @@ describe('Business Module (e2e)', () => {
     await prisma.order.deleteMany({ where: { businessId } });
     await prisma.branch.deleteMany({ where: { businessId } });
     await prisma.business.deleteMany({ where: { id: businessId } });
-    await prisma.role.deleteMany({ where: { type: 'BusinessOwner' } });
+    await prisma.role.deleteMany({ where: { name: { in: ['Admin', 'Dummy'] } } });
     await prisma.user.deleteMany({
-      where: { email: { in: ['biz-admin@test.com', 'cust@test.com'] } },
+      where: { email: { in: ['owner@test.com', 'biz-admin@test.com', 'cust@test.com'] } },
     });
     await app.close();
   });
@@ -126,7 +146,7 @@ describe('Business Module (e2e)', () => {
       .get('/api/v1/business/orders')
       .set('Authorization', `Bearer ${businessToken}`)
       .expect(200)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.data).toBeInstanceOf(Array);
         expect(res.body.total).toBe(1);
         expect(res.body.data[0].id).toEqual(orderId);
@@ -138,7 +158,7 @@ describe('Business Module (e2e)', () => {
       .post(`/api/v1/business/orders/${orderId}/approve`)
       .set('Authorization', `Bearer ${businessToken}`)
       .expect(201)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.status).toEqual('AwaitingPickupAssignment');
       });
   });
@@ -146,7 +166,7 @@ describe('Business Module (e2e)', () => {
   it('/api/v1/business/orders/:id/approve (POST) - negative: no permission', async () => {
     // Generate token with a role that has no permissions
     const dummyRole = await prisma.role.create({
-      data: { name: 'Dummy', type: 'BusinessOwner' },
+      data: { name: 'Dummy' },
     });
     const token = jwtService.sign({
       sub: 'user',

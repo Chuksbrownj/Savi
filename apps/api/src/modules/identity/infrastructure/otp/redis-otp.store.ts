@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import { Redis } from '@upstash/redis';
 import * as crypto from 'crypto';
 
 const OTP_KEY_PREFIX = 'otp:';
@@ -17,9 +17,8 @@ export class RedisOtpStore {
 
   constructor(private readonly config: ConfigService) {
     this.redis = new Redis({
-      host: config.get<string>('redis.host', 'localhost'),
-      port: config.get<number>('redis.port', 6379),
-      password: config.get<string | undefined>('redis.password'),
+      url: config.get<string>('UPSTASH_REDIS_REST_URL', ''),
+      token: config.get<string>('UPSTASH_REDIS_REST_TOKEN', ''),
     });
   }
 

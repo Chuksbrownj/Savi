@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 // Domain tokens
 import { USER_REPOSITORY } from './domain/repositories/user.repository.interface';
@@ -14,7 +15,7 @@ import { PrismaUserRepository } from './infrastructure/repositories/prisma-user.
 import { PrismaRefreshTokenRepository } from './infrastructure/repositories/prisma-refresh-token.repository';
 import { JwtStrategy } from './infrastructure/jwt/jwt.strategy';
 import { RedisOtpStore } from './infrastructure/otp/redis-otp.store';
-import { ConsoleOtpSender } from './infrastructure/otp/console-otp-sender';
+import { RealOtpSender } from './infrastructure/otp/real-otp-sender';
 import { OTP_SENDER } from './infrastructure/otp/otp-sender.interface';
 
 // Use Cases
@@ -43,6 +44,7 @@ import { RolesGuard } from './interface/guards/roles.guard';
 @Module({
   imports: [
     PrismaModule,
+    forwardRef(() => NotificationsModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -66,7 +68,7 @@ import { RolesGuard } from './interface/guards/roles.guard';
 
     // OTP infrastructure
     RedisOtpStore,
-    { provide: OTP_SENDER, useClass: ConsoleOtpSender },
+    { provide: OTP_SENDER, useClass: RealOtpSender },
 
     // JWT
     JwtStrategy,

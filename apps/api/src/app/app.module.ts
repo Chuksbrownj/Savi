@@ -8,7 +8,6 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { configModuleOptions } from '../config/validation.schema';
 import {
   databaseConfig,
-  redisConfig,
   jwtConfig,
   storageConfig,
   paymentsConfig,
@@ -18,7 +17,7 @@ import {
 } from '../config/configuration';
 
 import { PrismaModule } from '../infrastructure/prisma/prisma.module';
-import { QueueModule } from '../infrastructure/queue/queue.module';
+import { QStashModule } from '../infrastructure/qstash/qstash.module';
 
 import { HealthModule } from '../modules/health/health.module';
 import { IdentityModule } from '../modules/identity/identity.module';
@@ -31,6 +30,7 @@ import { NotificationsModule } from '../modules/notifications/notifications.modu
 import { BusinessModule } from '../modules/business/business.module';
 import { SupportModule } from '../modules/support/support.module';
 import { SharedKernelModule } from '../modules/shared-kernel/shared-kernel.module';
+import { AdminModule } from '../modules/admin/admin.module';
 
 import { RequestIdMiddleware } from '../common/middleware/request-id.middleware';
 import { JwtAuthGuard } from '../modules/identity/interface/guards/jwt-auth.guard';
@@ -44,7 +44,6 @@ import { AuditLogInterceptor } from '../common/interceptors/audit-log.intercepto
       ...configModuleOptions,
       load: [
         databaseConfig,
-        redisConfig,
         jwtConfig,
         storageConfig,
         paymentsConfig,
@@ -86,7 +85,7 @@ import { AuditLogInterceptor } from '../common/interceptors/audit-log.intercepto
 
     // ── Infrastructure ────────────────────────────────────────────────────
     PrismaModule,
-    QueueModule,
+    QStashModule,
     EventEmitterModule.forRoot(),
 
     // ── Feature Modules ───────────────────────────────────────────────────
@@ -100,6 +99,7 @@ import { AuditLogInterceptor } from '../common/interceptors/audit-log.intercepto
     PaymentsModule,
     NotificationsModule,
     BusinessModule,
+    AdminModule,
     SupportModule,
   ],
   providers: [

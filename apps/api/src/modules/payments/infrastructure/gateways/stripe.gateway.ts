@@ -6,6 +6,7 @@ import {
   PaymentInitiationResult,
   PaymentVerificationResult,
   PayoutResult,
+  RefundResult,
 } from '../../domain/interfaces/payment-gateway.interface';
 import { PaymentMethod } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -158,7 +159,11 @@ export class StripeGateway implements IPaymentGateway, IPayoutGateway {
     return {
       success: true,
       reference: data.id,
-      rawPayload: data,
+      rawPayload: {},
     };
+  }
+
+  async refund(paymentReference: string, amount: number): Promise<RefundResult> {
+    throw new Error('Refund not implemented for Stripe yet.');
   }
 }
