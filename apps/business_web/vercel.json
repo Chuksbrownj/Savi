@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "flutter build web --release",
+  "buildCommand": "./vercel-build.sh",
   "outputDirectory": "build/web",
-  "installCommand": "flutter pub get",
+  "installCommand": "echo 'Skipping default install, handled by vercel-build.sh'",
   "routes": [
     {
       "src": "/(.*)",

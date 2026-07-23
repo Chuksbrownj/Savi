@@ -8,7 +8,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import * as express from 'express';
+import express from 'express';
 
 import { AppModule } from './app/app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -18,7 +18,11 @@ const server = express();
 let cachedApp: express.Express | null = null;
 
 async function bootstrap(appInstance: any) {
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(appInstance), { bufferLogs: true });
+  const app = await NestFactory.create(
+    AppModule,
+    new ExpressAdapter(appInstance),
+    { bufferLogs: true },
+  );
 
   // ── Pino structured logging ──────────────────────────────────────────────
   app.useLogger(app.get(Logger));
@@ -82,13 +86,15 @@ async function bootstrap(appInstance: any) {
 // ── Local Development Server ──────────────────────────────────────────────
 // VERCEL injects various env vars, or we can look for NODE_ENV=development
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  bootstrap(server).then(async (app) => {
-    const port = process.env.PORT ?? 3000;
-    await app.listen(port);
-    console.log(`\n🚀 Savi API running at: http://localhost:${port}`);
-    console.log(`📚 Swagger docs at:    http://localhost:${port}/api/docs`);
-    console.log(`💚 Health check at:    http://localhost:${port}/health\n`);
-  }).catch(console.error);
+  bootstrap(server)
+    .then(async (app) => {
+      const port = process.env.PORT ?? 3000;
+      await app.listen(port);
+      console.log(`\n🚀 Savi API running at: http://localhost:${port}`);
+      console.log(`📚 Swagger docs at:    http://localhost:${port}/api/docs`);
+      console.log(`💚 Health check at:    http://localhost:${port}/health\n`);
+    })
+    .catch(console.error);
 }
 
 // ── Vercel Serverless Function ────────────────────────────────────────────
@@ -97,5 +103,5 @@ export default async (req: any, res: any) => {
     await bootstrap(server);
     cachedApp = server;
   }
-  return cachedApp(req, res);
+  return cachedApp!(req, res);
 };
