@@ -7,6 +7,7 @@ out-tsc
 
 # dependencies
 node_modules
+node_modules_old/
 
 # IDEs and editors
 /.idea
@@ -46,9 +47,7 @@ Thumbs.db
 
 # Environment files — never commit real secrets
 .env
-.env.development
-.env.test
-.env.production
+.env.*
 !.env.example
 
 # Prisma query engine binaries (platform-specific, regenerated on install)
@@ -58,3 +57,16 @@ node_modules/.prisma
 # Build output
 dist/
 build/
+.next/
+.next_old/
+
+# pnpm store (local cache, not for version control)
+.pnpm-store/
+
+# Node.js binary archives
+node-v*.tar.*
+nodesource_setup.sh
+
+# Phase planning & build stack docs (internal, not for public repo)
+phase-*.md
+Build Stack For Savi App.md

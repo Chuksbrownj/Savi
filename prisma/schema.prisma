@@ -2,7 +2,8 @@
 // Phase 2: Complete 20-entity schema for the Laundry Management Platform
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
