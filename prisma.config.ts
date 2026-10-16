@@ -14,7 +14,6 @@ import { defineConfig } from 'prisma/config';
  *
  * The DATABASE_URL env var is provided:
  *   - Locally: via .env.development
- *   - Docker: via docker-compose.yml environment block
  *   - CI/CD: via secrets
  */
 export default defineConfig({
